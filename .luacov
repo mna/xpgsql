@@ -1,0 +1,3 @@
+modules = {
+  ["xpgsql"] = "xpgsql.lua"
+}
