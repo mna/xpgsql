@@ -104,6 +104,21 @@ instance. Just generate a random password for root:
 $ openssl rand -base64 32 | tr -d '/' > .root_pwd
 ```
 
+And create a local `.pgpass` file for it, and setup the required env vars, e.g.:
+
+```
+# .pgpass file:
+localhost:5432:postgres:postgres:[the-password-from-.root_pwd]
+
+# environment variables, e.g. in .envrc if you use direnv:
+export PGPASSFILE=`pwd`/.pgpass
+export PGHOST=localhost
+export PGPORT=5432
+export PGCONNECT_TIMEOUT=10
+export PGUSER=postgres
+export PGDATABASE=postgres
+```
+
 Then bring the instance up by running:
 
 ```
