@@ -25,7 +25,8 @@ Connects to the database specified by the connection string.  It may be an
 empty string if the required settings are set in environment variables. If
 no connection string is provided, an empty string is used.
 
-Returns the connection object on success, or nil and an error message.
+Returns the connection object on success, or nil, an error message and the
+status code.
 
 ### `xpgsql.model(res, newf)`
 
@@ -60,19 +61,19 @@ error.
 
 ### `Connection:query(stmt, ...)`
 
-Executes a query statement and returns the result if it succeeds, or nil
-and an error message. Note that INSERT .. RETURNING must use
+Executes a query statement and returns the result if it succeeds, or nil, an
+error message and the status code. Note that INSERT .. RETURNING must use
 Connection:query as it returns values. The statement may contain $1, $2,
-etc.  placeholders, they will be replaced by the extra arguments
-provided to the method.
+etc.  placeholders, they will be replaced by the extra arguments provided to
+the method.
 
 ### `Connection:exec(stmt, ...)`
 
-Executes a non-query statement and returns the result if it
-succeeds, or nil and an error message. Note that INSERT..RETURNING
-must use Connection:query as it returns values. The statement may
-contain $1, $2, etc.  placeholders, they will be replaced by the
-extra arguments provided to the method.
+Executes a non-query statement and returns the result if it succeeds, or
+nil, an error message and the status code. Note that INSERT..RETURNING must
+use Connection:query as it returns values. The statement may contain $1, $2,
+etc.  placeholders, they will be replaced by the extra arguments provided to
+the method.
 
 ### `Connection:close()`
 
@@ -82,6 +83,7 @@ Closes the connection and frees resources associated with it.
 
 Clone the project and install the required development dependencies:
 
+* luapgsql (runtime dependency)
 * luaunit (unit test runner)
 * luacov (recommended, test coverage)
 
