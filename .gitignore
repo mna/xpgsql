@@ -6,3 +6,10 @@
 
 # rocks packages
 *.src.rock
+
+# environment configuration
+.env*
+
+# local root password
+.root_pwd
+.pgpass

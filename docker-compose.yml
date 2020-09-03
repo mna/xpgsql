@@ -1,0 +1,14 @@
+version: '3.6'
+services:
+  db:
+    image: postgres:12
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/root_pwd
+    secrets:
+      - root_pwd
+
+secrets:
+  root_pwd:
+    file: ./.root_pwd

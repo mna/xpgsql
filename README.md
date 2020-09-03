@@ -93,7 +93,22 @@ $ llrocks install ...
 
 To run tests, first make sure a postgres database is reachable with
 an empty connection string (e.g. via environment variables) and make
-sure it is ok to create tables and change data in that database. Then:
+sure it is ok to create tables and change data in that database.
+
+You can use the provided docker-compose file to run a dockerized postgresql
+instance. Just generate a random password for root:
+
+```
+$ openssl rand -base64 32 | tr -d '/' > .root_pwd
+```
+
+Then bring the instance up by running:
+
+```
+$ docker-compose up -d
+```
+
+Then:
 
 ```
 $ llrocks run test/main.lua
