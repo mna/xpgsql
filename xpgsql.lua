@@ -1,5 +1,8 @@
 local pgsql = require 'pgsql'
 
+local ok, cqpgsql = pcall(require, 'cqueues_pgsql')
+local connectfn = ok and cqpgsql.connectdb or pgsql.connectdb
+
 local function closeconn(conn)
   local rawconn = conn._conn
   if rawconn then
@@ -120,7 +123,7 @@ local M = {}
 -- status code.
 function M.connect(connstr)
   connstr = connstr or ''
-  local conn = pgsql.connectdb(connstr)
+  local conn = connectfn(connstr)
   local status = conn:status()
   if status == pgsql.CONNECTION_OK then
     return new_connection(conn)
