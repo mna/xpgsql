@@ -374,6 +374,7 @@ function TestXpgsql.test_tx_fail()
   local conn = assert(xpgsql.connect())
 
   local ok, err = conn:tx(function(c, arg)
+    lu.assertTrue(c.transaction)
     assert(c:exec([[
       INSERT INTO
         test_xpgsql (val)
@@ -382,6 +383,7 @@ function TestXpgsql.test_tx_fail()
     ]], arg))
     error('rollback')
   end, 'm')
+  lu.assertTrue(not conn.transaction)
 
   local res = assert(conn:query([[
     SELECT
@@ -403,6 +405,7 @@ function TestXpgsql.test_tx_ok()
   local conn = assert(xpgsql.connect())
 
   local ok, err = conn:tx(function(c, arg)
+    lu.assertTrue(c.transaction)
     return assert(c:exec([[
       INSERT INTO
         test_xpgsql (val)
@@ -410,6 +413,7 @@ function TestXpgsql.test_tx_ok()
         ($1)
     ]], arg))
   end, 'n')
+  lu.assertTrue(not conn.transaction)
 
   local res = assert(conn:query([[
     SELECT
