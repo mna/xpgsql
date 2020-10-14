@@ -54,7 +54,8 @@ values other than strings and numbers, it raises an error.
 Executes f inside a transaction, passing the Connection as first argument
 and any extra arguments passed to this function as subsequent arguments. On
 exit, the transaction is committed if f executed without error, otherwise it
-is rollbacked.
+is rollbacked. The Connection.transaction field is set to true before calling
+f, and is reset to its old value before returning.
 
 Returns the return values of f on success, or nil and an error message on
 error.
