@@ -371,6 +371,8 @@ function TestXpgsql.test_format_array_invalid()
 end
 
 function TestXpgsql.test_tx_fail()
+  ensure_table()
+
   local conn = assert(xpgsql.connect())
 
   local ok, err = conn:tx(function(c, arg)
@@ -402,6 +404,8 @@ function TestXpgsql.test_tx_fail()
 end
 
 function TestXpgsql.test_tx_ok()
+  ensure_table()
+
   local conn = assert(xpgsql.connect())
 
   local ok, err = conn:tx(function(c, arg)
@@ -427,6 +431,163 @@ function TestXpgsql.test_tx_ok()
   lu.assertNil(err)
   lu.assertEquals(ok:cmdTuples(), '1')
   lu.assertEquals(res:ntuples(), 1)
+
+  conn:close()
+end
+
+function TestXpgsql.test_ensuretx_ok()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+
+  local ok, err = conn:ensuretx(function(c, arg)
+    return assert(c:exec([[
+      INSERT INTO
+        test_xpgsql (val)
+      VALUES
+        ($1)
+    ]], arg))
+  end, 'o')
+
+  local res = assert(conn:query([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'o'))
+
+  lu.assertNil(err)
+  lu.assertEquals(ok:cmdTuples(), '1')
+  lu.assertEquals(res:ntuples(), 1)
+
+  conn:close()
+end
+
+function TestXpgsql.test_ensuretx_existing_ok()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+
+  local ok, err = conn:tx(function(c, arg)
+    return assert(c:ensuretx(function(c, arg)
+      return assert(c:exec([[
+        INSERT INTO
+          test_xpgsql (val)
+        VALUES
+          ($1)
+      ]], arg))
+    end, arg))
+  end, 'p')
+
+  local res = assert(conn:query([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'p'))
+
+  lu.assertNil(err)
+  lu.assertEquals(ok:cmdTuples(), '1')
+  lu.assertEquals(res:ntuples(), 1)
+
+  conn:close()
+end
+
+function TestXpgsql.test_ensuretx_existing_fail()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+
+  local ok, err = conn:tx(function(c, arg)
+    -- insert 'q', will be rollbacked
+    assert(c:exec([[
+      INSERT INTO
+        test_xpgsql (val)
+      VALUES
+        ($1)
+    ]], arg))
+    return assert(c:ensuretx(function(c, arg)
+      return assert(c:exec([[
+        INSERT INTO
+          test_xpgsql (val)
+        VALUES
+          (z)
+      ]]))
+    end, arg))
+  end, 'q')
+
+  lu.assertNil(ok)
+  lu.assertStrContains(err, 'column "z" does not exist')
+
+  local res = assert(conn:query([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'q'))
+
+  lu.assertEquals(res:ntuples(), 0)
+
+  conn:close()
+end
+
+function TestXpgsql.test_with_close()
+  ensure_table()
+  insert_rows('r')
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:with(true, function(c, arg)
+    return assert(c:query([[
+      SELECT
+        *
+      FROM
+        test_xpgsql
+      WHERE
+        val = $1
+    ]], arg))
+  end, 'r')
+
+  lu.assertNil(err)
+  lu.assertEquals(ok:ntuples(), 1)
+  lu.assertEquals(ok[1].val, 'r')
+
+  ok, err = pcall(conn.query, conn, 'SELECT 1')
+  lu.assertFalse(ok)
+  lu.assertStrContains(err, 'connection closed')
+
+  conn:close()
+end
+
+function TestXpgsql.test_with_noclose()
+  ensure_table()
+  insert_rows('s')
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:with(false, function(c, arg)
+    return assert(c:query([[
+      SELECT
+        *
+      FROM
+        test_xpgsql
+      WHERE
+        val = $1
+    ]], arg))
+  end, 's')
+
+  lu.assertNil(err)
+  lu.assertEquals(ok:ntuples(), 1)
+  lu.assertEquals(ok[1].val, 's')
+
+  ok, res = pcall(conn.query, conn, 'SELECT 1')
+  lu.assertTrue(ok)
+  lu.assertEquals(res:ntuples(), 1)
+  lu.assertEquals(res[1][1], '1')
 
   conn:close()
 end

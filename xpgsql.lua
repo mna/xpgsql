@@ -36,6 +36,7 @@ end
 -- values other than strings and numbers, it raises an error.
 function Connection:format_array(t)
   local rawconn = self._conn
+  assert(rawconn, 'connection closed')
 
   local buf = {}
   for i, v in ipairs(t) do
@@ -85,7 +86,42 @@ function Connection:tx(f, ...)
   end
 end
 
+-- Similar to Connection:tx, ensuretx starts a transaction only if Connection
+-- is not already inside one, and calls f with the Connection as first argument
+-- and any extra arguments passed to this function as subsequent arguments.
+-- If a transaction was started, it is closed after the call to f with a commit
+-- if f succeeded, or a rollback if it raised an error. If a transaction was
+-- not started (if Connection was already in a transaction before the call to
+-- ensuretx), the transaction is not terminated after the call to f.
+--
+-- Returns the return values of f on success, or nil and an error message on
+-- error.
+function Connection:ensuretx(f, ...)
+  if not self.transaction then
+    return self:tx(f, ...)
+  end
+  return self:with(false, f, ...)
+end
+
+-- Calls f with the Connection as first argument and any extra arguments passed
+-- to this function as subsequent arguments. If close is true, the connection
+-- is closed after the call to f.
+--
+-- Returns the return values of f on success, or nil and an error message on
+-- error.
+function Connection:with(close, f, ...)
+  local res = table.pack(pcall(f, self, ...))
+  if close then self:close() end
+  if res[1] then
+    return table.unpack(res, 2, res.n)
+  else
+    return nil, res[2]
+  end
+end
+
 local function exec_or_query(rawconn, stmt, success, ...)
+  assert(rawconn, 'connection closed')
+
   local res = rawconn:execParams(stmt, ...)
   if not res then
     return nil, rawconn:errorMessage(), rawconn:status()

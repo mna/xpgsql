@@ -60,6 +60,28 @@ f, and is reset to its old value before returning.
 Returns the return values of f on success, or nil and an error message on
 error.
 
+### `Connection:ensuretx(f, ...)`
+
+Similar to Connection:tx, ensuretx starts a transaction only if Connection
+is not already inside one, and calls f with the Connection as first argument
+and any extra arguments passed to this function as subsequent arguments.
+If a transaction was started, it is closed after the call to f with a commit
+if f succeeded, or a rollback if it raised an error. If a transaction was
+not started (if Connection was already in a transaction before the call to
+ensuretx), the transaction is not terminated after the call to f.
+
+Returns the return values of f on success, or nil and an error message on
+error.
+
+### `Connection:with(close, f, ...)`
+
+Calls f with the Connection as first argument and any extra arguments passed
+to this function as subsequent arguments. If close is true, the connection
+is closed after the call to f.
+
+Returns the return values of f on success, or nil and an error message on
+error.
+
 ### `Connection:query(stmt, ...)`
 
 Executes a query statement and returns the result if it succeeds, or nil, an
