@@ -1,7 +1,7 @@
 local pgsql = require 'pgsql'
 
-local ok, cqpgsql = pcall(require, 'cqueues_pgsql')
-local connectfn = ok and cqpgsql.connectdb or pgsql.connectdb
+local okreq, cqpgsql = pcall(require, 'cqueues_pgsql')
+local connectfn = okreq and cqpgsql.connectdb or pgsql.connectdb
 
 local function closeconn(conn)
   local rawconn = conn._conn
@@ -20,8 +20,7 @@ Connection.__index = Connection
 
 local function new_connection(rawconn)
   local o = {_conn = rawconn}
-  setmetatable(o, Connection)
-  return o
+  return setmetatable(o, Connection)
 end
 
 -- Closes the connection and frees resources associated with it.
@@ -130,24 +129,31 @@ local function exec_or_query(rawconn, stmt, success, ...)
   if status == success then
     return res
   else
-    return nil, res:errorMessage(), status
+    return nil, res:errorMessage(), status, res:resStatus(status), res:errorField(pgsql.PG_DIAG_SQLSTATE)
   end
 end
 
 -- Executes a query statement and returns the result if it succeeds, or nil, an
--- error message and the status code. Note that INSERT .. RETURNING must use
--- Connection:query as it returns values. The statement may contain $1, $2,
--- etc.  placeholders, they will be replaced by the extra arguments provided to
--- the method.
+-- error message and the status code (number). If the error is not related to the
+-- connection, then it also returns the string version of the status (e.g. PGRES_FATAL_ERROR)
+-- and the SQL state code (e.g. 42P01, see https://www.postgresql.org/docs/current/errcodes-appendix.html).
+--
+-- Note that INSERT .. RETURNING must use Connection:query as it returns
+-- values. The statement may contain $1, $2, etc. placeholders, they will be
+-- replaced by the extra arguments provided to the method.
 function Connection:query(stmt, ...)
   return exec_or_query(self._conn, stmt, pgsql.PGRES_TUPLES_OK, ...)
 end
 
 -- Executes a non-query statement and returns the result if it succeeds, or
--- nil, an error message and the status code. Note that INSERT..RETURNING must
--- use Connection:query as it returns values. The statement may contain $1, $2,
--- etc.  placeholders, they will be replaced by the extra arguments provided to
--- the method.
+-- nil, an error message and the status code (number). If the error is not
+-- related to the connection, then it also returns the string version of the
+-- status (e.g. PGRES_FATAL_ERROR) and the SQL state code (e.g. 42P01, see
+-- https://www.postgresql.org/docs/current/errcodes-appendix.html).
+--
+-- Note that INSERT..RETURNING must use Connection:query as it returns values.
+-- The statement may contain $1, $2, etc. placeholders, they will be replaced
+-- by the extra arguments provided to the method.
 function Connection:exec(stmt, ...)
   return exec_or_query(self._conn, stmt, pgsql.PGRES_COMMAND_OK, ...)
 end
