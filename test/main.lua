@@ -317,6 +317,130 @@ function TestXpgsql.test_models_some_fn()
   conn:close()
 end
 
+function TestXpgsql.test_get_none()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local res = conn:get([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'no-such-val')
+
+  lu.assertNil(res)
+
+  conn:close()
+end
+
+function TestXpgsql.test_get_some()
+  ensure_table()
+  insert_rows('ee')
+
+  local conn = assert(xpgsql.connect())
+  local res = conn:get([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'ee')
+
+  lu.assertEquals(res.val, 'ee')
+  lu.assertString(res.id)
+  lu.assertTrue(tonumber(res.id) > 0)
+
+  conn:close()
+end
+
+function TestXpgsql.test_get_some_fn()
+  ensure_table()
+  insert_rows('ff')
+
+  local conn = assert(xpgsql.connect())
+  local res = conn:get([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'ff', newmodel)
+
+  lu.assertEquals(res.val, 'ff')
+  lu.assertNumber(res.id)
+  lu.assertTrue(res.id > 0)
+
+  conn:close()
+end
+
+function TestXpgsql.test_select_none()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local res = conn:select([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val = $1
+  ]], 'no-such-val')
+
+  lu.assertEquals(res, {})
+
+  conn:close()
+end
+
+function TestXpgsql.test_select_some()
+  ensure_table()
+  insert_rows('gg', 'hh')
+
+  local conn = assert(xpgsql.connect())
+  local res = conn:select([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val IN ($1, $2)
+    ORDER BY
+      val
+  ]], 'gg', 'hh')
+
+  lu.assertEquals(#res, 2)
+  lu.assertEquals(res[1].val, 'gg')
+  lu.assertEquals(res[2].val, 'hh')
+
+  conn:close()
+end
+
+function TestXpgsql.test_select_some_fn()
+  ensure_table()
+  insert_rows('ii', 'jj')
+
+  local conn = assert(xpgsql.connect())
+  local res = conn:select([[
+    SELECT
+      *
+    FROM
+      test_xpgsql
+    WHERE
+      val IN ($1, $2)
+    ORDER BY
+      val
+  ]], 'ii', 'jj', newmodel)
+
+  lu.assertEquals(#res, 2)
+  lu.assertNumber(res[1].id)
+  lu.assertNumber(res[2].id)
+
+  conn:close()
+end
+
 function TestXpgsql.test_format_array_string()
   ensure_table()
   insert_rows('k', 'l')

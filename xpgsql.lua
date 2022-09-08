@@ -18,6 +18,8 @@ local Connection = {
 }
 Connection.__index = Connection
 
+local M = {}
+
 local function new_connection(rawconn)
   local o = {_conn = rawconn}
   return setmetatable(o, Connection)
@@ -158,8 +160,56 @@ function Connection:exec(stmt, ...)
   return exec_or_query(self._conn, stmt, pgsql.PGRES_COMMAND_OK, ...)
 end
 
+-- Combines a call to :query with a call to .model to return the first row
+-- decoded into a table with column names as keys. If the last parameter
+-- after the statement is a function, it is used as the 'newf' argument to
+-- the call to .model, to provide further initialization of the row's table.
+-- Returns the resulting table, or nil if the query did not return any row.
+-- It returns nil along with any error in case of failure, as returned by
+-- :query.
+function Connection:get(stmt, ...)
+	local newf
 
-local M = {}
+	local args = table.pack(...)
+	if args.n > 0 then
+		local last = args[#args]
+		if type(last) == 'function' then
+			newf = last
+			args.n = args.n - 1
+		end
+	end
+
+	local res, e1, e2, e3, e4 = self:query(stmt, table.unpack(args, 1, args.n))
+	if not res then
+		return e1, e2, e3, e4
+	end
+	return M.model(res, newf)
+end
+
+-- Combines a call to :query with a call to .models to return an array of rows
+-- each decoded into a table with column names as keys. If the last parameter
+-- after the statement is a function, it is used as the 'newf' argument to
+-- the call to .models, to provide further initialization of each row's table.
+-- Returns the resulting array (which is empty if the query returned no row),
+-- or nil and any error as returned by :query.
+function Connection:select(stmt, ...)
+	local newf
+
+	local args = table.pack(...)
+	if args.n > 0 then
+		local last = args[#args]
+		if type(last) == 'function' then
+			newf = last
+			args.n = args.n - 1
+		end
+	end
+
+	local res, e1, e2, e3, e4 = self:query(stmt, table.unpack(args, 1, args.n))
+	if not res then
+		return e1, e2, e3, e4
+	end
+	return M.models(res, newf)
+end
 
 -- Connects to the database specified by the connection string.  It may be an
 -- empty string if the required settings are set in environment variables. If

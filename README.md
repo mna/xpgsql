@@ -105,6 +105,25 @@ Note that INSERT..RETURNING must use Connection:query as it returns values.
 The statement may contain $1, $2, etc. placeholders, they will be replaced
 by the extra arguments provided to the method.
 
+### `Connection:get(stmt, ...)`
+
+Combines a call to `:query` with a call to `.model` to return the first row
+decoded into a table with column names as keys. If the last parameter
+after the statement is a function, it is used as the 'newf' argument to
+the call to `.model`, to provide further initialization of the row's table.
+Returns the resulting table, or nil if the query did not return any row.
+It returns nil along with any error in case of failure, as returned by
+`:query`.
+
+### `Connection:select(stmt, ...)`
+
+Combines a call to `:query` with a call to `.models` to return an array of rows
+each decoded into a table with column names as keys. If the last parameter
+after the statement is a function, it is used as the 'newf' argument to
+the call to `.models`, to provide further initialization of each row's table.
+Returns the resulting array (which is empty if the query returned no row),
+or nil and any error as returned by `:query`.
+
 ### `Connection:close()`
 
 Closes the connection and frees resources associated with it.
