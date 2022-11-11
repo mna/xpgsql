@@ -65,10 +65,12 @@ end
 -- f, and is reset to its old value before returning.
 --
 -- Returns the return values of f on success, or nil and an error message on
--- error.
+-- error. As a special-case, to allow asserting on the call, it returns true if
+-- f succeeded and did not return anything (it can still return nil
+-- explicitly and Connection:tx will then return nil).
 function Connection:tx(f, ...)
   do
-    local ok, err = self:exec('BEGIN TRANSACTION')
+    local ok, err = self:exec('BEGIN TRANSACTION') -- TODO: all exec error values
     if not ok then return nil, err end
   end
 
@@ -78,12 +80,16 @@ function Connection:tx(f, ...)
   self.transaction = old_tx
 
   if res[1] then
-    local ok, err = self:exec('COMMIT')
+    local ok, err = self:exec('COMMIT') -- TODO: exec can return a bunch of error values
     if not ok then return nil, err end
+		-- return true if f did not return anything
+		if res.n == 1 then
+			return true
+		end
     return table.unpack(res, 2, res.n)
   else
     self:exec('ROLLBACK')
-    return nil, res[2]
+    return nil, res[2] -- TODO: all error values...
   end
 end
 
@@ -96,7 +102,9 @@ end
 -- ensuretx), the transaction is not terminated after the call to f.
 --
 -- Returns the return values of f on success, or nil and an error message on
--- error.
+-- error. As a special-case, to allow asserting on the call, it returns true if
+-- f succeeded and did not return anything (it can still return nil explicitly
+-- and Connection:ensuretx will then return nil).
 function Connection:ensuretx(f, ...)
   if not self.transaction then
     return self:tx(f, ...)
@@ -109,14 +117,20 @@ end
 -- is closed after the call to f.
 --
 -- Returns the return values of f on success, or nil and an error message on
--- error.
+-- error. As a special-case, to allow asserting on the call, it returns true if
+-- f succeeded and did not return anything (it can still return nil explicitly
+-- and Connection:with will then return nil).
 function Connection:with(close, f, ...)
   local res = table.pack(pcall(f, self, ...))
   if close then self:close() end
   if res[1] then
+		-- return true if f did not return anything
+		if res.n == 1 then
+			return true
+		end
     return table.unpack(res, 2, res.n)
   else
-    return nil, res[2]
+    return nil, res[2] -- TODO: all error values
   end
 end
 

@@ -716,6 +716,111 @@ function TestXpgsql.test_with_noclose()
   conn:close()
 end
 
+function TestXpgsql.test_tx_noreturn()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:tx(function(c)
+    assert(c:query([[
+      SELECT
+        COUNT(*)
+      FROM
+        test_xpgsql
+    ]]))
+  end)
+
+  lu.assertNil(err)
+	lu.assertTrue(ok)
+end
+
+function TestXpgsql.test_tx_returnnil()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:tx(function(c)
+    assert(c:query([[
+      SELECT
+        COUNT(*)
+      FROM
+        test_xpgsql
+    ]]))
+		return nil
+  end)
+
+  lu.assertNil(err)
+	lu.assertNil(ok)
+end
+
+function TestXpgsql.test_ensuretx_noreturn()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:ensuretx(function(c)
+    assert(c:query([[
+      SELECT
+        COUNT(*)
+      FROM
+        test_xpgsql
+    ]]))
+  end)
+
+  lu.assertNil(err)
+	lu.assertTrue(ok)
+end
+
+function TestXpgsql.test_ensuretx_returnnil()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:ensuretx(function(c)
+    assert(c:query([[
+      SELECT
+        COUNT(*)
+      FROM
+        test_xpgsql
+    ]]))
+		return nil
+  end)
+
+  lu.assertNil(err)
+	lu.assertNil(ok)
+end
+
+function TestXpgsql.test_with_noreturn()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:with(true, function(c)
+    assert(c:query([[
+      SELECT
+        COUNT(*)
+      FROM
+        test_xpgsql
+    ]]))
+  end)
+
+  lu.assertNil(err)
+	lu.assertTrue(ok)
+end
+
+function TestXpgsql.test_with_returnnil()
+  ensure_table()
+
+  local conn = assert(xpgsql.connect())
+  local ok, err = conn:with(true, function(c)
+    assert(c:query([[
+      SELECT
+        COUNT(*)
+      FROM
+        test_xpgsql
+    ]]))
+		return nil
+  end)
+
+  lu.assertNil(err)
+	lu.assertNil(ok)
+end
+
 local code = lu.LuaUnit.run()
 mainConn:close()
 os.exit(code)
