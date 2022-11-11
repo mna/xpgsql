@@ -151,6 +151,9 @@ instance. Just generate a random password for root:
 
 ```
 $ openssl rand -base64 32 | tr -d '/' > .root_pwd
+
+# if on SELinux-based OS
+$ chcon -Rt svirt_sandbox_file_t .root_pwd
 ```
 
 And create a local `.pgpass` file for it, and setup the required env vars, e.g.:
