@@ -32,8 +32,9 @@ local M = {
 	transform_error = nil,
 }
 
-local function new_connection(rawconn)
-  local o = {_conn = rawconn}
+local function new_connection(rawconn, errtfm)
+	errtfm = errtfm or function(...) return ... end
+  local o = {_conn = rawconn, _errtfm = errtfm}
   return setmetatable(o, Connection)
 end
 
@@ -147,18 +148,19 @@ function Connection:with(close, f, ...)
   end
 end
 
-local function exec_or_query(rawconn, stmt, success, ...)
+local function exec_or_query(conn, stmt, success, ...)
+	local rawconn = conn._conn
   assert(rawconn, 'connection closed')
 
   local res = rawconn:execParams(stmt, ...)
   if not res then
-    return nil, rawconn:errorMessage(), rawconn:status()
+    return nil, conn._errtfm(rawconn:errorMessage(), rawconn:status())
   end
   local status = res:status()
   if status == success then
     return res
   else
-    return nil, res:errorMessage(), status, res:resStatus(status), res:errorField(pgsql.PG_DIAG_SQLSTATE)
+    return nil, conn._errtfm(res:errorMessage(), status, res:resStatus(status), res:errorField(pgsql.PG_DIAG_SQLSTATE))
   end
 end
 
@@ -171,7 +173,7 @@ end
 -- values. The statement may contain $1, $2, etc. placeholders, they will be
 -- replaced by the extra arguments provided to the method.
 function Connection:query(stmt, ...)
-  return exec_or_query(self._conn, stmt, pgsql.PGRES_TUPLES_OK, ...)
+  return exec_or_query(self, stmt, pgsql.PGRES_TUPLES_OK, ...)
 end
 
 -- Executes a non-query statement and returns the result if it succeeds, or
@@ -184,7 +186,7 @@ end
 -- The statement may contain $1, $2, etc. placeholders, they will be replaced
 -- by the extra arguments provided to the method.
 function Connection:exec(stmt, ...)
-  return exec_or_query(self._conn, stmt, pgsql.PGRES_COMMAND_OK, ...)
+  return exec_or_query(self, stmt, pgsql.PGRES_COMMAND_OK, ...)
 end
 
 -- Combines a call to :query with a call to .model to return the first row
@@ -249,11 +251,12 @@ function M.connect(connstr)
   local conn = connectfn(connstr)
   local status = conn:status()
   if status == pgsql.CONNECTION_OK then
-    return new_connection(conn)
+    return new_connection(conn, M.transform_error)
   else
+		local errtfm = M.transform_error or function(...) return ... end
     local err = conn:errorMessage()
     conn:finish()
-    return nil, err, status
+    return nil, errtfm(err, status)
   end
 end
 
