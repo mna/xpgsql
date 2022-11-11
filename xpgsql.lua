@@ -18,7 +18,19 @@ local Connection = {
 }
 Connection.__index = Connection
 
-local M = {}
+local M = {
+	-- If set, transform_error is called with all error values and its return
+	-- value(s) is returned instead of the base values. Can be useful to collect
+	-- the different values in a structured object and return that object
+	-- instead.
+	--
+	-- May be called with up to 4 values:
+	-- 1. the error message
+	-- 2. the error status code (a number)
+	-- 3. the string version of the status (e.g. 'PGRES_FATAL_ERROR')
+	-- 4. the SQL state code (e.g. 42P01, see https://www.postgresql.org/docs/current/errcodes-appendix.html)
+	transform_error = nil,
+}
 
 local function new_connection(rawconn)
   local o = {_conn = rawconn}
@@ -70,8 +82,8 @@ end
 -- explicitly and Connection:tx will then return nil).
 function Connection:tx(f, ...)
   do
-    local ok, err = self:exec('BEGIN TRANSACTION') -- TODO: all exec error values
-    if not ok then return nil, err end
+    local res = table.pack(self:exec('BEGIN TRANSACTION'))
+    if not res[1] then return nil, table.unpack(res, 2, res.n) end
   end
 
   local old_tx = self.transaction
@@ -80,8 +92,9 @@ function Connection:tx(f, ...)
   self.transaction = old_tx
 
   if res[1] then
-    local ok, err = self:exec('COMMIT') -- TODO: exec can return a bunch of error values
-    if not ok then return nil, err end
+    local commit_res = table.pack(self:exec('COMMIT'))
+    if not commit_res[1] then return nil, table.unpack(commit_res, 2, commit_res.n) end
+
 		-- return true if f did not return anything
 		if res.n == 1 then
 			return true
@@ -89,7 +102,7 @@ function Connection:tx(f, ...)
     return table.unpack(res, 2, res.n)
   else
     self:exec('ROLLBACK')
-    return nil, res[2] -- TODO: all error values...
+    return nil, table.unpack(res, 2, res.n)
   end
 end
 
@@ -130,7 +143,7 @@ function Connection:with(close, f, ...)
 		end
     return table.unpack(res, 2, res.n)
   else
-    return nil, res[2] -- TODO: all error values
+    return nil, table.unpack(res, 2, res.n)
   end
 end
 
@@ -193,11 +206,11 @@ function Connection:get(stmt, ...)
 		end
 	end
 
-	local res, e1, e2, e3, e4 = self:query(stmt, table.unpack(args, 1, args.n))
-	if not res then
-		return e1, e2, e3, e4
+	local res = table.pack(self:query(stmt, table.unpack(args, 1, args.n)))
+	if not res[1] then
+		return nil, table.unpack(res, 2, res.n)
 	end
-	return M.model(res, newf)
+	return M.model(res[1], newf)
 end
 
 -- Combines a call to :query with a call to .models to return an array of rows
@@ -218,11 +231,11 @@ function Connection:select(stmt, ...)
 		end
 	end
 
-	local res, e1, e2, e3, e4 = self:query(stmt, table.unpack(args, 1, args.n))
-	if not res then
-		return e1, e2, e3, e4
+	local res = table.pack(self:query(stmt, table.unpack(args, 1, args.n)))
+	if not res[1] then
+		return nil, table.unpack(res, 2, res.n)
 	end
-	return M.models(res, newf)
+	return M.models(res[1], newf)
 end
 
 -- Connects to the database specified by the connection string.  It may be an
