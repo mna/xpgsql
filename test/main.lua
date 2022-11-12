@@ -729,6 +729,7 @@ function TestXpgsql.test_tx_noreturn()
     ]]))
   end)
 
+	conn:close()
   lu.assertNil(err)
 	lu.assertTrue(ok)
 end
@@ -747,6 +748,7 @@ function TestXpgsql.test_tx_returnnil()
 		return nil
   end)
 
+	conn:close()
   lu.assertNil(err)
 	lu.assertNil(ok)
 end
@@ -764,6 +766,7 @@ function TestXpgsql.test_ensuretx_noreturn()
     ]]))
   end)
 
+	conn:close()
   lu.assertNil(err)
 	lu.assertTrue(ok)
 end
@@ -782,6 +785,7 @@ function TestXpgsql.test_ensuretx_returnnil()
 		return nil
   end)
 
+	conn:close()
   lu.assertNil(err)
 	lu.assertNil(ok)
 end
@@ -819,6 +823,104 @@ function TestXpgsql.test_with_returnnil()
 
   lu.assertNil(err)
 	lu.assertNil(ok)
+end
+
+function TestXpgsql.test_tx_err()
+  ensure_table()
+  insert_rows('t')
+
+  local conn = assert(xpgsql.connect())
+	-- no extra error information, due to assert raising only the error message
+  local ok, err, extra = conn:tx(function(c)
+    assert(c:exec([[
+      INSERT INTO
+        test_xpgsql (val)
+      VALUES
+        ($1)
+    ]], 't'))
+  end)
+
+	conn:close()
+	lu.assertNil(ok)
+  lu.assertNotNil(err)
+  lu.assertNil(extra)
+	lu.assertStrContains(err, 'duplicate key value violates unique constraint')
+end
+
+function TestXpgsql.test_with_err()
+  ensure_table()
+  insert_rows('u')
+
+  local conn = assert(xpgsql.connect())
+	-- no extra error information, due to assert raising only the error message
+  local ok, err, extra = conn:with(true, function(c)
+    assert(c:exec([[
+      INSERT INTO
+        test_xpgsql (val)
+      VALUES
+        ($1)
+    ]], 'u'))
+  end)
+
+	lu.assertNil(ok)
+  lu.assertNotNil(err)
+  lu.assertNil(extra)
+	lu.assertStrContains(err, 'duplicate key value violates unique constraint')
+end
+
+function TestXpgsql.test_tx_errtfm()
+	xpgsql.transform_error = function(msg, code, status, state)
+		return {msg = msg, code = code, status = status, state = state}
+	end
+
+  ensure_table()
+  insert_rows('v')
+
+  local conn = assert(xpgsql.connect())
+  local ok, err, extra = conn:tx(function(c)
+    assert(c:exec([[
+      INSERT INTO
+        test_xpgsql (val)
+      VALUES
+        ($1)
+    ]], 'v'))
+  end)
+
+	conn:close()
+	xpgsql.transform_error = nil
+	lu.assertNil(ok)
+  lu.assertNotNil(err)
+  lu.assertNil(extra)
+	lu.assertStrContains(err.msg, 'duplicate key value violates unique constraint')
+	err.msg = nil
+	lu.assertEquals({code = 7, state = '23505', status = 'PGRES_FATAL_ERROR'}, err)
+end
+
+function TestXpgsql.test_with_errtfm()
+	xpgsql.transform_error = function(msg, code, status, state)
+		return {msg = msg, code = code, status = status, state = state}
+	end
+
+  ensure_table()
+  insert_rows('w')
+
+  local conn = assert(xpgsql.connect())
+  local ok, err, extra = conn:with(true, function(c)
+    assert(c:exec([[
+      INSERT INTO
+        test_xpgsql (val)
+      VALUES
+        ($1)
+    ]], 'w'))
+  end)
+
+	xpgsql.transform_error = nil
+	lu.assertNil(ok)
+  lu.assertNotNil(err)
+  lu.assertNil(extra)
+	lu.assertStrContains(err.msg, 'duplicate key value violates unique constraint')
+	err.msg = nil
+	lu.assertEquals({code = 7, state = '23505', status = 'PGRES_FATAL_ERROR'}, err)
 end
 
 local code = lu.LuaUnit.run()
