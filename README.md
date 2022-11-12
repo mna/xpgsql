@@ -19,6 +19,19 @@ Or simply copy the single xpgsql.lua file in your project or your `LUA_PATH`.
 
 Assuming `local xpgsql = require 'xpgsql'`. You can check out the tests for actual examples of using the API.
 
+### `xpgsql.transform_error`
+
+If set, the `transform_error` field is called with all error values and its
+return value(s) is returned instead of the base values. Can be useful to
+collect the different values in a structured object and return that object
+instead.
+
+May be called with up to 4 values:
+1. the error message
+2. the error status code (a number)
+3. the string version of the status (e.g. 'PGRES_FATAL_ERROR')
+4. the SQL state code (e.g. 42P01, see https://www.postgresql.org/docs/current/errcodes-appendix.html)
+
 ### `xpgsql.connect(connstr)`
 
 Connects to the database specified by the connection string.  It may be an
@@ -58,7 +71,9 @@ is rollbacked. The Connection.transaction field is set to true before calling
 f, and is reset to its old value before returning.
 
 Returns the return values of f on success, or nil and an error message on
-error.
+error. As a special-case, to allow asserting on the call, it returns true if
+f succeeded and did not return anything (it can still return nil
+explicitly and Connection:tx will then return nil).
 
 ### `Connection:ensuretx(f, ...)`
 
@@ -71,7 +86,9 @@ not started (if Connection was already in a transaction before the call to
 ensuretx), the transaction is not terminated after the call to f.
 
 Returns the return values of f on success, or nil and an error message on
-error.
+error. As a special-case, to allow asserting on the call, it returns true if
+f succeeded and did not return anything (it can still return nil explicitly
+and Connection:ensuretx will then return nil).
 
 ### `Connection:with(close, f, ...)`
 
@@ -80,7 +97,9 @@ to this function as subsequent arguments. If close is true, the connection
 is closed after the call to f.
 
 Returns the return values of f on success, or nil and an error message on
-error.
+error. As a special-case, to allow asserting on the call, it returns true if
+f succeeded and did not return anything (it can still return nil explicitly
+and Connection:with will then return nil).
 
 ### `Connection:query(stmt, ...)`
 
